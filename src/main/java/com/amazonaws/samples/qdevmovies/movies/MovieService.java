@@ -56,6 +56,7 @@ public class MovieService {
             }
         } catch (Exception e) {
             logger.error("Failed to load movies from JSON: {}", e.getMessage());
+            throw new MovieSearchException("Failed to load movie data", e);
         }
         return movieList;
     }
@@ -83,35 +84,40 @@ public class MovieService {
     public List<Movie> searchMovies(String name, Long id, String genre) {
         logger.info("Ahoy! Searchin' for movies with name: {}, id: {}, genre: {}", name, id, genre);
         
-        List<Movie> results = new ArrayList<>(movies);
-        
-        // Filter by ID if provided - this be the most specific treasure map!
-        if (id != null && id > 0) {
-            logger.debug("Searchin' by ID - lookin' for treasure with ID: {}", id);
-            Optional<Movie> movieById = getMovieById(id);
-            return movieById.map(List::of).orElse(new ArrayList<>());
+        try {
+            List<Movie> results = new ArrayList<>(movies);
+            
+            // Filter by ID if provided - this be the most specific treasure map!
+            if (id != null && id > 0) {
+                logger.debug("Searchin' by ID - lookin' for treasure with ID: {}", id);
+                Optional<Movie> movieById = getMovieById(id);
+                return movieById.map(List::of).orElse(new ArrayList<>());
+            }
+            
+            // Filter by name if provided - searchin' for movies by their title, matey!
+            if (name != null && !name.trim().isEmpty()) {
+                String searchName = name.trim().toLowerCase();
+                logger.debug("Filterin' by name: {}", searchName);
+                results = results.stream()
+                        .filter(movie -> movie.getMovieName().toLowerCase().contains(searchName))
+                        .collect(Collectors.toList());
+            }
+            
+            // Filter by genre if provided - sortin' by the type of adventure!
+            if (genre != null && !genre.trim().isEmpty()) {
+                String searchGenre = genre.trim().toLowerCase();
+                logger.debug("Filterin' by genre: {}", searchGenre);
+                results = results.stream()
+                        .filter(movie -> movie.getGenre().toLowerCase().contains(searchGenre))
+                        .collect(Collectors.toList());
+            }
+            
+            logger.info("Found {} movies in our treasure chest!", results.size());
+            return results;
+        } catch (RuntimeException e) {
+            logger.error("Arrr! Error during movie search: {}", e.getMessage(), e);
+            throw new MovieSearchException("Error occurred while searching for movies", e);
         }
-        
-        // Filter by name if provided - searchin' for movies by their title, matey!
-        if (name != null && !name.trim().isEmpty()) {
-            String searchName = name.trim().toLowerCase();
-            logger.debug("Filterin' by name: {}", searchName);
-            results = results.stream()
-                    .filter(movie -> movie.getMovieName().toLowerCase().contains(searchName))
-                    .collect(Collectors.toList());
-        }
-        
-        // Filter by genre if provided - sortin' by the type of adventure!
-        if (genre != null && !genre.trim().isEmpty()) {
-            String searchGenre = genre.trim().toLowerCase();
-            logger.debug("Filterin' by genre: {}", searchGenre);
-            results = results.stream()
-                    .filter(movie -> movie.getGenre().toLowerCase().contains(searchGenre))
-                    .collect(Collectors.toList());
-        }
-        
-        logger.info("Found {} movies in our treasure chest!", results.size());
-        return results;
     }
 
     /**
@@ -121,10 +127,15 @@ public class MovieService {
      * @return List of unique genres
      */
     public List<String> getAllGenres() {
-        return movies.stream()
-                .map(Movie::getGenre)
-                .distinct()
-                .sorted()
-                .collect(Collectors.toList());
+        try {
+            return movies.stream()
+                    .map(Movie::getGenre)
+                    .distinct()
+                    .sorted()
+                    .collect(Collectors.toList());
+        } catch (RuntimeException e) {
+            logger.error("Arrr! Error getting genres: {}", e.getMessage(), e);
+            throw new MovieSearchException("Error occurred while retrieving movie genres", e);
+        }
     }
 }

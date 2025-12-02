@@ -83,10 +83,7 @@ public class MoviesController {
                 (id == null || id <= 0) && 
                 (genre == null || genre.trim().isEmpty())) {
                 
-                response.put("success", false);
-                response.put("message", "Arrr! Ye need to provide at least one search parameter, matey! Use 'name', 'id', or 'genre'.");
-                response.put("pirateWisdom", "A pirate without a map be lost at sea! Give me somethin' to search for!");
-                return ResponseEntity.badRequest().body(response);
+                throw new InvalidSearchParametersException("At least one search parameter must be provided: name, id, or genre");
             }
             
             List<Movie> movies = movieService.searchMovies(name, id, genre);
@@ -112,11 +109,32 @@ public class MoviesController {
             
             return ResponseEntity.ok(response);
             
-        } catch (Exception e) {
-            logger.error("Arrr! Error during movie search: {}", e.getMessage(), e);
+        } catch (InvalidSearchParametersException e) {
+            logger.warn("Arrr! Invalid search parameters provided: {}", e.getMessage());
+            response.put("success", false);
+            response.put("message", "Arrr! Ye need to provide at least one search parameter, matey! Use 'name', 'id', or 'genre'.");
+            response.put("pirateWisdom", "A pirate without a map be lost at sea! Give me somethin' to search for!");
+            response.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        } catch (MovieSearchException e) {
+            logger.error("Arrr! Movie search operation failed: {}", e.getMessage(), e);
             response.put("success", false);
             response.put("message", "Shiver me timbers! An error occurred while searchin' for movies.");
             response.put("pirateWisdom", "Even the best pirates face storms at sea. Try again later, matey!");
+            response.put("error", e.getMessage());
+            return ResponseEntity.internalServerError().body(response);
+        } catch (IllegalArgumentException e) {
+            logger.warn("Arrr! Invalid argument provided for movie search: {}", e.getMessage());
+            response.put("success", false);
+            response.put("message", "Arrr! Invalid search parameters provided, ye scallywag!");
+            response.put("pirateWisdom", "Check yer search terms and try again, matey!");
+            response.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(response);
+        } catch (RuntimeException e) {
+            logger.error("Arrr! Unexpected error during movie search: {}", e.getMessage(), e);
+            response.put("success", false);
+            response.put("message", "Shiver me timbers! An unexpected error occurred while searchin' for movies.");
+            response.put("pirateWisdom", "Even the best pirates face unexpected storms at sea. Try again later, matey!");
             response.put("error", e.getMessage());
             return ResponseEntity.internalServerError().body(response);
         }
